@@ -48,12 +48,12 @@ int main(int argc, char* argv[]) {
     t.stop();
 
     std::sort(B, B + n);
-    // parallel_for(0, n, [&](size_t j) {
-    //   if (A[j] != B[j]) {
-    //     std::cout << "The output is not sorted\n";
-    //     exit(0);
-    //   }
-    // });
+    parallel_for(0, n, [&](size_t j) {
+      if (A[j] != B[j]) {
+        std::cout << "The output is not sorted\n";
+        exit(0);
+      }
+    });
 
     if (i == 0) {
       std::cout << "Warmup round running time: " << t.total_time() << std::endl;
