@@ -3,7 +3,7 @@
 
 using namespace parlay;
 
-const size_t THRESHOLD = 1000;
+const size_t THRESHOLD = 10000;
 inline uint64_t hash64_(uint64_t u) {
   uint64_t v = u * 3935559000370003845ul + 2691343689449507681ul;
   v ^= v >> 21;
@@ -63,6 +63,13 @@ T scan_up(T *A, T *ls, size_t n) {
 //For Calculating prefix sum in parallel
 template <class T>
 void pscan(T *A, T *B,size_t n) {
+  if(n<THRESHOLD) {
+    for(size_t i=1;i<n;i++) {
+      A[i] = A[i-1] + A[i];
+      B[i] = A[i];
+    }
+    return;
+  }
     T* ls = (T*)malloc(n * sizeof(T));
     scan_up(A, ls, n);
     scan_down(A, B, ls, n, 0);
