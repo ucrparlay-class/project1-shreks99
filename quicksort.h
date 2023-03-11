@@ -77,6 +77,18 @@ T scan_up(T *A, T *ls, size_t n) {
     ls[m-1] = l;
     return l+r;
 }
+//For Calculating prefix sum in parallel
+template <class T>
+void pscan(T *A, T *B,size_t n) {
+  if(n<=THRESHOLD) {
+    seq_scan(A,B,n);
+  }
+    T* ls = (T*)malloc(n * sizeof(T));
+    scan_up(A, ls, n);
+    scan_down(A, B, ls, n, 0);
+    free(ls);
+}
+
 template<typename T>
 void pscan_in(T* A, size_t n) {
   if(n==0) return;
@@ -121,29 +133,19 @@ void pscan_in(T* A, size_t n) {
   delete[] S;
 }
 
-//For Calculating prefix sum in parallel
-template <class T>
-void pscan(T *A, T *B,size_t n) {
-  if(n<THRESHOLD) {
-    seq_scan(A,B,n);
-  }
-    T* ls = (T*)malloc(n * sizeof(T));
-    scan_up(A, ls, n);
-    scan_down(A, B, ls, n, 0);
-    free(ls);
-}
-
 template <class T,class Func>
 T filter(T* A, size_t n, T* B, T pivot,const Func& f) {
     T* flag = (T*)malloc(n * sizeof(T));
-   T* ps = (T*)malloc(n * sizeof(T));
-    if(n<THRESHOLD){
+   //T* ps = (T*)malloc(n * sizeof(T));
+    if(n<=THRESHOLD){
       for(size_t i=0;i<n;i++) flag[i] = f(A[i],pivot);
-      seq_scan(flag,ps,n);
+      for(size_t i=1;i<n;i++) flag[i] += flag[i-1];
       for(size_t i=0;i<n;i++) if(f(A[i],pivot)) {
-          B[ps[i]-1] = A[i]; 
+          B[flag[i]-1] = A[i]; 
         }
-      return ps[n-1];    
+      T last_ind = flag[n-1];
+      free(flag);
+      return last_ind;   
     }
     parallel_for(0, n, [&](size_t i) {
         flag[i] = f(A[i],pivot);
@@ -156,8 +158,9 @@ T filter(T* A, size_t n, T* B, T pivot,const Func& f) {
           B[flag[i]-1] = A[i]; 
         }
     });
-    
-  return flag[n-1];    
+  T last_ind = flag[n-1];
+  free(flag);
+  return last_ind;    
 }
 
 template <class T>
@@ -174,25 +177,27 @@ T para_partition(T *A, size_t n, T pivot) {
 //large
   filter(A,n,B+count2,pivot,f_more);
   parallel_for(0, n, [&](size_t i) {A[i] = B[i];});
+  free(B);
   return count2;
 }
 
 template <class T>
-T custom_rand(T* A,size_t n,size_t threshold) {
-  T* index = (T*)malloc(threshold * sizeof(T));
-  for(size_t i=0;i<threshold;i++)
-    index[i] = A[hash64_(i)%(n)];
-  std::sort(index,index+threshold);
-  return index[threshold/2];
+T custom_rand(T* A,size_t n) {
+  T* index = (T*)malloc(1000 * sizeof(T));
+  parallel_for(0, 1000, [&](size_t i) {index[i] = A[hash64_(i)%(n)];});    
+  std::sort(index,index+1000);
+  T median = index[500];
+  free(index);
+  return median;
 }
 
 template <class T>
 void quicksort(T *A, size_t n) {
   if(n<=1) return; 
-  if(n<THRESHOLD){
+  if(n<=THRESHOLD){
     std::sort(A,A+n);
   } else{
-  T t = para_partition(A,n,custom_rand(A,n,THRESHOLD));
+  T t = para_partition(A,n,custom_rand(A,n));
     if((size_t)t < n){
       parlay::par_do(
             [&] { quicksort(A,t);},
