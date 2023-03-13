@@ -16,78 +16,78 @@ inline uint64_t hash64_(uint64_t u) {
   v ^= v << 5;
   return v;
 }
-template <class T>
-void swap(T& a, T& b)
-{ 
-    T t = a; 
-    a = b; 
-    b = t; 
-}
-template <class T>
-T seq_partition(T* A, size_t n, T pivot) {
-  size_t i = 0, j = n-1;
-  while(i<j) {
-    while(A[i]<=pivot) i++;
-    while(A[j]>pivot) j--;
-    if(i<j) swap(A[i],A[j]);
-  }
-  return j;
-}
+// template <class T>
+// void swap(T& a, T& b)
+// { 
+//     T t = a; 
+//     a = b; 
+//     b = t; 
+// }
+// template <class T>
+// T seq_partition(T* A, size_t n, T pivot) {
+//   size_t i = 0, j = n-1;
+//   while(i<j) {
+//     while(A[i]<=pivot) i++;
+//     while(A[j]>pivot) j--;
+//     if(i<j) swap(A[i],A[j]);
+//   }
+//   return j;
+// }
 
 
-template <class T>
-void scan_down(T* A, T* B, T* ls, size_t n, size_t offset) {
-    if(n==1) {
-        B[0] = offset + A[0];
-        return;
-    }
-    size_t m = n/2;
-    parlay::par_do(
-        [&] { scan_down(A,B,ls,m,offset);},
-        [&] { scan_down(A + m, B+m, ls + m, n - m,offset + ls[m-1]);});
-  }
-//For calcuating the leftsum in sequential for prefix-sum
-template <class T>
-T seq_scan_up(T *A, T *ls, size_t n) {
-  T sum = 0;
-  for(size_t i=0;i<n;i++)
-    sum+=A[i];
-  return sum;
-}
-//For Calulating prefix sum in sequential
-template <class T>
-void seq_scan(T *A, T *B, size_t n) {
-   B[0]=A[0];
-    for(size_t i=1;i<n;i++) {
-      A[i] = A[i-1] + A[i];
-      B[i] = A[i];
-    }
-    return;
-}
-//For calculating the leftsum for prefix-sum
-template <class T>
-T scan_up(T *A, T *ls, size_t n) {
-    if(n==1) return A[0];
-    size_t m = n/2;
-    T l,r;
-    auto f1 = [&]() { l = scan_up(A, ls, m);};
-    auto f2 = [&]() { r = scan_up(A + m, ls + m, n - m);};
-    par_do(f1, f2);
+// template <class T>
+// void scan_down(T* A, T* B, T* ls, size_t n, size_t offset) {
+//     if(n==1) {
+//         B[0] = offset + A[0];
+//         return;
+//     }
+//     size_t m = n/2;
+//     parlay::par_do(
+//         [&] { scan_down(A,B,ls,m,offset);},
+//         [&] { scan_down(A + m, B+m, ls + m, n - m,offset + ls[m-1]);});
+//   }
+// //For calcuating the leftsum in sequential for prefix-sum
+// template <class T>
+// T seq_scan_up(T *A, T *ls, size_t n) {
+//   T sum = 0;
+//   for(size_t i=0;i<n;i++)
+//     sum+=A[i];
+//   return sum;
+// }
+// //For Calulating prefix sum in sequential
+// template <class T>
+// void seq_scan(T *A, T *B, size_t n) {
+//    B[0]=A[0];
+//     for(size_t i=1;i<n;i++) {
+//       A[i] = A[i-1] + A[i];
+//       B[i] = A[i];
+//     }
+//     return;
+// }
+// //For calculating the leftsum for prefix-sum
+// template <class T>
+// T scan_up(T *A, T *ls, size_t n) {
+//     if(n==1) return A[0];
+//     size_t m = n/2;
+//     T l,r;
+//     auto f1 = [&]() { l = scan_up(A, ls, m);};
+//     auto f2 = [&]() { r = scan_up(A + m, ls + m, n - m);};
+//     par_do(f1, f2);
 
-    ls[m-1] = l;
-    return l+r;
-}
-//For Calculating prefix sum in parallel
-template <class T>
-void pscan(T *A, T *B,size_t n) {
-  if(n<=THRESHOLD) {
-    seq_scan(A,B,n);
-  }
-    T* ls = (T*)malloc(n * sizeof(T));
-    scan_up(A, ls, n);
-    scan_down(A, B, ls, n, 0);
-    free(ls);
-}
+//     ls[m-1] = l;
+//     return l+r;
+// }
+// //For Calculating prefix sum in parallel
+// template <class T>
+// void pscan(T *A, T *B,size_t n) {
+//   if(n<=THRESHOLD) {
+//     seq_scan(A,B,n);
+//   }
+//     T* ls = (T*)malloc(n * sizeof(T));
+//     scan_up(A, ls, n);
+//     scan_down(A, B, ls, n, 0);
+//     free(ls);
+// }
 
 template<typename T>
 void pscan_in(T* A, size_t n) {
@@ -133,61 +133,85 @@ void pscan_in(T* A, size_t n) {
   delete[] S;
 }
 
-template <class T,class Func>
-T filter(T* A, size_t n, T* B, T pivot,const Func& f) {
-    T* flag = (T*)malloc(n * sizeof(T));
-   //T* ps = (T*)malloc(n * sizeof(T));
+template <class T>
+std::tuple<T,T> filter(T* A, size_t n, T* B, T pivot) {  
     if(n<=THRESHOLD){
-      for(size_t i=0;i<n;i++) flag[i] = f(A[i],pivot);
-      for(size_t i=1;i<n;i++) flag[i] += flag[i-1];
-      for(size_t i=0;i<n;i++) if(f(A[i],pivot)) {
+      T* flag = new T[n];
+      T* flag2 = new T[n];
+      for(size_t i=0;i<n;i++) {
+        flag[i] = pivot>A[i];
+        flag2[i] = pivot<A[i];
+      }
+      for(size_t i=1;i<n;i++) {
+        flag[i] += flag[i-1];
+        flag2[i] += flag2[i-1];
+      }
+      T last_ind = flag[n-1];
+      T last_ind2 = n-flag2[n-1];
+      for(T i=last_ind;i<last_ind2;i++)
+        B[i] = pivot;
+      if(flag[0]==1)B[0] = A[0];
+      else B[last_ind2] = A[0];
+
+      for(size_t i=1;i<n;i++) {
+        if(flag[i]!=flag[i-1]) {
           B[flag[i]-1] = A[i]; 
         }
-      T last_ind = flag[n-1];
-      free(flag);
-      return last_ind;   
+        if(flag2[i]!=flag2[i-1]) {
+          B[flag2[i]-1+last_ind2] = A[i]; 
+        }
+        }
+      delete[] flag;
+      delete[] flag2;
+      return std::make_tuple(last_ind,last_ind2);  
     }
+    T* flag = new T[n];
+    T* flag2 = new T[n];
     parallel_for(0, n, [&](size_t i) {
-        flag[i] = f(A[i],pivot);
+        flag[i] = pivot>A[i];
+        flag2[i] = pivot<A[i];
     });
      
    // pscan(flag,ps,n);
     pscan_in(flag,n);
-    parallel_for(0, n, [&](size_t i) {
-        if(f(A[i],pivot)) {
+    pscan_in(flag2,n);
+    T last_ind = flag[n-1];
+    T last_ind2 = n-flag2[n-1];
+
+    parallel_for(last_ind,last_ind2,[&](size_t i){ B[i] = pivot;});
+  
+    if(flag[0]==1)B[0] = A[0];
+    else B[last_ind2] = A[0];
+    parallel_for(1, n, [&](size_t i) {
+        if(flag[i-1]!=flag[i]) {
           B[flag[i]-1] = A[i]; 
         }
+        if(flag2[i]!=flag2[i-1]) {
+          B[flag2[i]-1+last_ind2] = A[i]; 
+        }
     });
-  T last_ind = flag[n-1];
-  free(flag);
-  return last_ind;    
+ 
+  delete[] flag;
+  delete[] flag2;
+  return std::make_tuple(last_ind,last_ind2);  
 }
 
 template <class T>
-T para_partition(T *A, size_t n, T pivot) {
- 
-  T* B = (T*)malloc(n * sizeof(T)); 
-  auto f_less = [](T value, T pivot) { return pivot>value; };
-  auto f_more = [](T value, T pivot) { return pivot<value; };
-  auto f_equal = [](T value, T pivot) { return pivot==value; };
-//less values
-  T count = filter(A,n,B,pivot,f_less);
-//equal values
-  T count2  = count + filter(A,n,B+count,pivot,f_equal);
-//large
-  filter(A,n,B+count2,pivot,f_more);
+std::tuple<T,T> para_partition(T *A, size_t n, T pivot) {
+  T* B = new T[n];
+  const auto [last_ind,last_ind2] = filter(A,n,B,pivot);
   parallel_for(0, n, [&](size_t i) {A[i] = B[i];});
-  free(B);
-  return count2;
+  delete[] B;
+  return std::make_tuple(last_ind,last_ind2);  
 }
 
 template <class T>
 T custom_rand(T* A,size_t n) {
-  T* index = (T*)malloc(1000 * sizeof(T));
-  parallel_for(0, 1000, [&](size_t i) {index[i] = A[hash64_(i)%(n)];});    
-  std::sort(index,index+1000);
-  T median = index[500];
-  free(index);
+  T* index = new T[100];
+  parallel_for(0, 100, [&](size_t i) {index[i] = A[hash64_(i)%(n)];});    
+  std::sort(index,index+100);
+  T median = index[50];
+  delete[] index;
   return median;
 }
 
@@ -197,11 +221,11 @@ void quicksort(T *A, size_t n) {
   if(n<=THRESHOLD){
     std::sort(A,A+n);
   } else{
-  T t = para_partition(A,n,custom_rand(A,n));
-    if((size_t)t < n){
+  const auto [t1,t2] = para_partition(A,n,custom_rand(A,n));
+    if((size_t)t1 < n && (size_t)t2 < n){
       parlay::par_do(
-            [&] { quicksort(A,t);},
-            [&] { quicksort(A+t,n-t);});
+            [&] { quicksort(A,t1);},
+            [&] { quicksort(A+t2,n-t2);});
     }
-  }
+}
 }
