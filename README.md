@@ -1,4 +1,4 @@
-# homework0-quicksort  
+# quicksort  
 
 ## Compiling the code  
 A Makefile is given in the directory, simply use ``make`` to compile the code. If you're compiling the code on a M-series Mac, add the ``MXMAC=1`` option:  
